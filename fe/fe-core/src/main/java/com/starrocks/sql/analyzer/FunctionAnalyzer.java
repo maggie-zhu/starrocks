@@ -15,9 +15,11 @@
 package com.starrocks.sql.analyzer;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.re2j.Pattern;
+import com.starrocks.analysis.ArithmeticExpr;
 import com.starrocks.analysis.DecimalLiteral;
 import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.FunctionCallExpr;
@@ -55,6 +57,7 @@ import com.starrocks.sql.optimizer.transformer.ExpressionMapping;
 import com.starrocks.sql.optimizer.transformer.SqlToScalarOperatorTranslator;
 import com.starrocks.sql.parser.NodePosition;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -805,6 +808,66 @@ public class FunctionAnalyzer {
                                 Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
                         break;
                 }
+            }
+        } else if (FunctionSet.DATE_TRUNC.equalsIgnoreCase(fnName)) {
+            //if the column type is milliseconds, we can transform it to datetime
+            Type originType = argumentTypes[1];
+            if (originType.isBigint()) {
+                argumentTypes[1] = Type.DATETIME;
+                ArithmeticExpr unixTime = new ArithmeticExpr(ArithmeticExpr.Operator.DIVIDE, node.getChild(1),
+                        new DecimalLiteral(BigDecimal.valueOf(1000)));
+                Type[] argumentTypesArth = new Type[] {originType, Type.INT};
+                unixTime.setFn(Expr.getBuiltinFunction(FunctionSet.DIVIDE, argumentTypesArth,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF));
+                Expr unixToDate = new FunctionCallExpr(FunctionSet.FROM_UNIXTIME,
+                        new FunctionParams(ImmutableList.of(unixTime)));
+                Type[] argumentTypesUnix = new Type[] {Type.INT};
+                unixToDate.setFn(Expr.getBuiltinFunction(FunctionSet.FROM_UNIXTIME, argumentTypesUnix,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF));
+                node.getParams().setExprs(Lists.newArrayList(node.getParams().exprs().get(0), unixToDate));
+                node.setChild(1, unixToDate);
+                fn = Expr.getBuiltinFunction(FunctionSet.DATE_TRUNC, argumentTypes,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+            }
+        } else if (FunctionSet.DATE_FORMAT.equalsIgnoreCase(fnName)) {
+            //if the column type is milliseconds, we can transform it to datetime
+            Type originType = argumentTypes[0];
+            if (originType.isBigint()) {
+                argumentTypes[1] = Type.DATETIME;
+                ArithmeticExpr unixTime = new ArithmeticExpr(ArithmeticExpr.Operator.DIVIDE, node.getChild(1),
+                        new DecimalLiteral(BigDecimal.valueOf(1000)));
+                Type[] argumentTypesArth = new Type[] {originType, Type.INT};
+                unixTime.setFn(Expr.getBuiltinFunction(FunctionSet.DIVIDE, argumentTypesArth,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF));
+                Expr unixToDate = new FunctionCallExpr(FunctionSet.FROM_UNIXTIME,
+                        new FunctionParams(ImmutableList.of(unixTime)));
+                Type[] argumentTypesUnix = new Type[] {Type.INT};
+                unixToDate.setFn(Expr.getBuiltinFunction(FunctionSet.FROM_UNIXTIME, argumentTypesUnix,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF));
+                node.getParams().setExprs(Lists.newArrayList(unixToDate, node.getParams().exprs().get(1)));
+                node.setChild(0, unixToDate);
+                fn = Expr.getBuiltinFunction(FunctionSet.DATE_FORMAT, argumentTypes,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+            }
+        } else if (FunctionSet.TIME_SLICE.equalsIgnoreCase(fnName)) {
+            //if the column type is milliseconds, we can transform it to datetime
+            Type originType = argumentTypes[0];
+            if (originType.isBigint()) {
+                argumentTypes[0] = Type.DATETIME;
+                ArithmeticExpr unixTime = new ArithmeticExpr(ArithmeticExpr.Operator.DIVIDE, node.getChild(0),
+                        new DecimalLiteral(BigDecimal.valueOf(1000)));
+                Type[] argumentTypesArth = new Type[] {originType, Type.INT};
+                unixTime.setFn(Expr.getBuiltinFunction(FunctionSet.DIVIDE, argumentTypesArth,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF));
+                Expr unixToDate = new FunctionCallExpr(FunctionSet.FROM_UNIXTIME,
+                        new FunctionParams(ImmutableList.of(unixTime)));
+                Type[] argumentTypesUnix = new Type[] {Type.INT};
+                unixToDate.setFn(Expr.getBuiltinFunction(FunctionSet.FROM_UNIXTIME, argumentTypesUnix,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF));
+                node.getParams().setExprs(Lists.newArrayList(unixToDate, node.getParams().exprs().get(1)));
+                node.setChild(0, unixToDate);
+                fn = Expr.getBuiltinFunction(FunctionSet.TIME_SLICE, argumentTypes,
+                        Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
             }
         }
         // add new argument types
