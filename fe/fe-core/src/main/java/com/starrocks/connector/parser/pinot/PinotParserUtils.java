@@ -18,6 +18,7 @@ import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.FunctionCallExpr;
 import com.starrocks.analysis.StringLiteral;
 import com.starrocks.catalog.FunctionSet;
+import com.starrocks.catalog.Type;
 import com.starrocks.common.util.DateUtils;
 
 import java.time.format.DateTimeParseException;
@@ -224,6 +225,37 @@ public class PinotParserUtils {
                 return 1.0 / 86400;
             default:
                 throw new IllegalArgumentException("Invalid outputTimeUnitStr: " + outputTimeUnitStr);
+        }
+    }
+
+    public static Type getScalarType(String inputType) {
+        switch (inputType.toUpperCase()) {
+            case "INT":
+                return Type.INT;
+            case "LONG":
+                return Type.BIGINT;
+            case "FLOAT":
+                return Type.FLOAT;
+            case "DOUBLE":
+                return Type.DOUBLE;
+            case "BOOLEAN":
+                return Type.BOOLEAN;
+            case "TIMESTAMP":
+                return Type.DATETIME;
+            case "STRING":
+                return Type.STRING;
+            case "INT_ARRAY":
+                return Type.ARRAY_INT;
+            case "LONG_ARRAY":
+                return Type.ARRAY_BIGINT;
+            case "FLOAT_ARRAY":
+                return Type.ARRAY_FLOAT;
+            case "DOUBLE_ARRAY":
+                return Type.ARRAY_DOUBLE;
+            case "STRING_ARRAY":
+                return Type.ARRAY_VARCHAR;
+            default:
+                return Type.VARCHAR;
         }
     }
 

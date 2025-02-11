@@ -15,14 +15,7 @@ package com.starrocks.connector.parser.pinot;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.starrocks.analysis.ArithmeticExpr;
-import com.starrocks.analysis.CompoundPredicate;
-import com.starrocks.analysis.DecimalLiteral;
-import com.starrocks.analysis.Expr;
-import com.starrocks.analysis.FunctionCallExpr;
-import com.starrocks.analysis.FunctionParams;
-import com.starrocks.analysis.IntLiteral;
-import com.starrocks.analysis.StringLiteral;
+import com.starrocks.analysis.*;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
 import com.starrocks.sql.analyzer.SemanticException;
@@ -143,6 +136,25 @@ public class ComplexFunctionCallTransformer {
             }
             List<String> parsedInput = parseInputString(((StringLiteral) args[1]).getValue());
             return buildPredicate(parsedInput, argumentsList);
+        } else if (functionName.equalsIgnoreCase("jsonextractscalar")) {
+            List<Expr> argumentsList = Arrays.asList(args);
+            if (args.length < 3) {
+                throw new SemanticException("The jsonextractscalar function must include at least 3 parameters.");
+            }
+            if (args.length == 3) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), argumentsList.get(1))));
+                StringLiteral resultsType = (StringLiteral) argumentsList.get(2);
+                return new CastExpr(PinotParserUtils.getScalarType(resultsType.getValue()), jsonQuery);
+            } else if (args.length == 4) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), argumentsList.get(1))));
+                StringLiteral resultsType = (StringLiteral) argumentsList.get(2);
+
+                CastExpr castExpr = new CastExpr(PinotParserUtils.getScalarType(resultsType.getValue()), jsonQuery);
+                return new FunctionCallExpr(FunctionSet.IFNULL,
+                        new FunctionParams(ImmutableList.of(castExpr, argumentsList.get(3))));
+            }
         }
 
 

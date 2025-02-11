@@ -99,7 +99,8 @@ public class PinotTestBase {
                 "  `th` datetime NULL COMMENT \"\",\n" +
                 "  `ti` date NULL COMMENT \"\",\n" +
                 "  `tj` decimal(9, 3) NULL COMMENT \"\",\n" +
-                "  `tk` varbinary NULL COMMENT \"\"\n" +
+                "  `tk` varbinary NULL COMMENT \"\",\n" +
+                "  `j` JSON NULL COMMENT \"\"\n" +
                 ") ENGINE=OLAP\n" +
                 "DUPLICATE KEY(`ta`)\n" +
                 "COMMENT \"OLAP\"\n" +

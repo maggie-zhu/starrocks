@@ -176,13 +176,13 @@ public class PinotQueryTest extends PinotTestBase {
                 "FROM test.tall\n";
 
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : unix_timestamp(date_trunc('week', 8: th)) * 1000");
+                "  |  <slot 13> : unix_timestamp(date_trunc('week', 8: th)) * 1000");
 
         sql = "select dateTrunc('week', th, 'MILLISECONDS') AS ts\n" +
                 "FROM test.tall";
 
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : unix_timestamp(date_trunc('week', 8: th)) * 1000");
+                "  |  <slot 13> : unix_timestamp(date_trunc('week', 8: th)) * 1000");
 
         sql = "select dateTrunc(\n" +
                 "  'week', \n" +
@@ -193,7 +193,7 @@ public class PinotQueryTest extends PinotTestBase {
                 ") AS ts\n" +
                 "FROM test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(convert_tz(date_trunc('week', 8: th), 'UTC', 'UTC')) " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(convert_tz(date_trunc('week', 8: th), 'UTC', 'UTC')) " +
                 "AS DECIMAL128(18,0)) * 1.0 AS DOUBLE))");
 
         sql = "select dateTrunc(\n" +
@@ -205,7 +205,7 @@ public class PinotQueryTest extends PinotTestBase {
                 ") AS ts\n" +
                 "FROM test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(convert_tz(date_trunc('week', 8: th), " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(convert_tz(date_trunc('week', 8: th), " +
                 "'CET', 'UTC')) AS DECIMAL128(18,0)) * 1.0 AS DOUBLE))");
 
         sql = "select dateTrunc(\n" +
@@ -217,7 +217,7 @@ public class PinotQueryTest extends PinotTestBase {
                 ") AS ts\n" +
                 "FROM test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(convert_tz(date_trunc('quarter', 8: th), " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(convert_tz(date_trunc('quarter', 8: th), " +
                 "'America/Los_Angeles', 'UTC')) AS DECIMAL128(18,0)) * 0.0002777777777777778 AS DOUBLE))");
     }
 
@@ -231,7 +231,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(time_slice(8: th, 1, 'day', 'floor')) " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(time_slice(8: th, 1, 'day', 'floor')) " +
                 "AS DECIMAL128(18,0)) * 0.000011574074074074073 AS DOUBLE))");
 
         sql = "select DATETIMECONVERT(\n" +
@@ -242,7 +242,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(time_slice(8: th, 1, 'day', 'floor')) " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(time_slice(8: th, 1, 'day', 'floor')) " +
                 "AS DECIMAL128(18,0)) * 1000.0 AS DOUBLE))");
 
         sql = "select DATETIMECONVERT(\n" +
@@ -254,7 +254,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(convert_tz(time_slice(8: th, 1, 'day', 'floor'), " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(convert_tz(time_slice(8: th, 1, 'day', 'floor'), " +
                 "'Europe/Berlin', 'UTC')) AS DECIMAL128(18,0)) * 1000.0 AS DOUBLE))");
 
         sql = "select DATETIMECONVERT(\n" +
@@ -265,7 +265,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : floor(CAST(CAST(unix_timestamp(time_slice(8: th, 15, 'minute', 'floor')) " +
+                "  |  <slot 13> : floor(CAST(CAST(unix_timestamp(time_slice(8: th, 15, 'minute', 'floor')) " +
                 "AS DECIMAL128(18,0)) * 1000.0 AS DOUBLE))");
 
 
@@ -277,7 +277,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : date_format(time_slice(convert_tz(8: th, 'UTC', 'UTC'), 1, 'day', 'floor'), '%Y-%m-%d')");
+                "  |  <slot 13> : date_format(time_slice(convert_tz(8: th, 'UTC', 'UTC'), 1, 'day', 'floor'), '%Y-%m-%d')");
 
         sql = "select DATETIMECONVERT(\n" +
                 "         th, \n" +
@@ -287,7 +287,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : date_format(time_slice(convert_tz(8: th, 'UTC', 'Pacific/Kiritimati'), 1, " +
+                "  |  <slot 13> : date_format(time_slice(convert_tz(8: th, 'UTC', 'Pacific/Kiritimati'), 1, " +
                 "'millisecond', 'floor'), '%Y-%m-%d %H:%i')");
 
 
@@ -299,7 +299,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : date_format(time_slice(convert_tz(8: th, 'UTC', 'Pacific/Kiritimati'), 1, " +
+                "  |  <slot 13> : date_format(time_slice(convert_tz(8: th, 'UTC', 'Pacific/Kiritimati'), 1, " +
                 "'day', 'floor'), '%Y-%m-%d %H:%i')");
 
         sql = "select DATETIMECONVERT(\n" +
@@ -311,7 +311,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "       ) AS convertedTime\n" +
                 "from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : date_format(convert_tz(time_slice(convert_tz(8: th, 'UTC', 'UTC'), 1, " +
+                "  |  <slot 13> : date_format(convert_tz(time_slice(convert_tz(8: th, 'UTC', 'UTC'), 1, " +
                 "'day', 'floor'), 'Europe/Berlin', 'UTC'), '%Y-%m-%d %H:%i')");
     }
 
@@ -319,14 +319,14 @@ public class PinotQueryTest extends PinotTestBase {
     public void testToDateTimeFunction() throws Exception {
         String sql = "SELECT ToDateTime(th, 'yyyy-MM-dd') AS dateTimeString from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : date_format(8: th, '%Y-%m-%d')");
+                "  |  <slot 13> : date_format(8: th, '%Y-%m-%d')");
 
         sql = "SELECT ToDateTime(\n" +
                 "    th, \n" +
                 "    'yyyy-MM-dd hh:mm:ss a'\n" +
                 "    ) AS dateTimeString from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : date_format(8: th, '%Y-%m-%d %I:%i:%S %p')");
+                "  |  <slot 13> : date_format(8: th, '%Y-%m-%d %I:%i:%S %p')");
 
         sql = "SELECT ToDateTime(\n" +
                 "    th, \n" +
@@ -334,7 +334,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "    'CET'\n" +
                 "    ) AS dateTimeString from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : convert_tz(CAST(date_format(8: th, '%Y-%m-%d %H:%i:%S ') " +
+                "  |  <slot 13> : convert_tz(CAST(date_format(8: th, '%Y-%m-%d %H:%i:%S ') " +
                 "AS DATETIME), 'Asia/Shanghai', 'CET')");
     }
 
@@ -342,21 +342,21 @@ public class PinotQueryTest extends PinotTestBase {
     public void testFromDateTimeFunction() throws Exception {
         String sql = "select FromDateTime(th, 'yyyy-MM-dd') AS epochMillis from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : unix_timestamp(str_to_date(CAST(8: th AS VARCHAR), '%Y-%m-%d')) * 1000");
+                "  |  <slot 13> : unix_timestamp(str_to_date(CAST(8: th AS VARCHAR), '%Y-%m-%d')) * 1000");
 
         sql = "select FromDateTime(\n" +
                 "    th, \n" +
                 "    'yyyy-MM-dd hh:mm:ss a'\n" +
                 "    ) AS epochMillis from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : unix_timestamp(str_to_date(CAST(8: th AS VARCHAR), '%Y-%m-%d %I:%i:%S %p')) * 1000");
+                "  |  <slot 13> : unix_timestamp(str_to_date(CAST(8: th AS VARCHAR), '%Y-%m-%d %I:%i:%S %p')) * 1000");
 
         sql = "select FromDateTime(\n" +
                 "    th, \n" +
                 "    'yyyy-MM-dd''T''HH:mm:ss'\n" +
                 "    ) AS epochMillis from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : unix_timestamp(str_to_date(CAST(8: th AS VARCHAR), '%Y-%m-%dT%H:%i:%S')) * 1000");
+                "  |  <slot 13> : unix_timestamp(str_to_date(CAST(8: th AS VARCHAR), '%Y-%m-%dT%H:%i:%S')) * 1000");
     }
 
     @Test
@@ -379,31 +379,42 @@ public class PinotQueryTest extends PinotTestBase {
     public void testTextMatchFunction() throws Exception {
         String sql = "select text_match(ta, '\"distributed system\"') AS value from test.tall";
         assertPlanContains(sql, " 1:Project\n" +
-                "  |  <slot 12> : regexp(1: ta, '\\\\bdistributed system\\\\b')");
+                "  |  <slot 13> : regexp(1: ta, '\\\\bdistributed system\\\\b')");
 
         sql = "select text_match(ta, 'Java') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : regexp(1: ta, '\\\\bJava\\\\b')");
+                "  |  <slot 13> : regexp(1: ta, '\\\\bJava\\\\b')");
 
         sql = "select text_match(ta, 'Java AND C++') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : (regexp(1: ta, '\\\\bJava\\\\b')) AND (regexp(1: ta, '\\\\bC++\\\\b'))");
+                "  |  <slot 13> : (regexp(1: ta, '\\\\bJava\\\\b')) AND (regexp(1: ta, '\\\\bC++\\\\b'))");
 
         sql = "select text_match(ta, 'stream*') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : regexp(1: ta, '^stream.*')");
+                "  |  <slot 13> : regexp(1: ta, '^stream.*')");
 
         sql = "select text_match(ta, '/Exception.*/') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : regexp(1: ta, 'Exception.*')");
+                "  |  <slot 13> : regexp(1: ta, 'Exception.*')");
 
         sql = "select text_match(ta, 'Java C++') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : (regexp(1: ta, '\\\\bJava\\\\b')) OR (regexp(1: ta, '\\\\bC++\\\\b'))");
+                "  |  <slot 13> : (regexp(1: ta, '\\\\bJava\\\\b')) OR (regexp(1: ta, '\\\\bC++\\\\b'))");
 
         sql = "select text_match(ta, '\"Machine learning\" AND gpu AND python') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 12> : ((regexp(1: ta, '\\\\bMachine learning\\\\b')) AND " +
+                "  |  <slot 13> : ((regexp(1: ta, '\\\\bMachine learning\\\\b')) AND " +
                 "(regexp(1: ta, '\\\\bgpu\\\\b'))) AND (regexp(1: ta, '\\\\bpython\\\\b'))");
+    }
+
+    @Test
+    public void testJsonExtractScalarFunction() throws Exception {
+        String sql = "select jsonextractscalar(j, '$.name', 'INT') AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : CAST(get_json_int(12: j, '$.name') AS INT)");
+
+        sql = "select jsonextractscalar(j, '$.name', 'STRING', 'dummyValue') AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : ifnull(get_json_string(12: j, '$.name'), 'dummyValue')");
     }
 }
