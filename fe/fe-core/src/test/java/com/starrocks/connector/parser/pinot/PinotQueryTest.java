@@ -32,9 +32,7 @@ public class PinotQueryTest extends PinotTestBase {
         assertPlanContains(sql, "limit: 100");
 
         sql = "select \"v1\", \"v2\" from test.t0";
-        assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 4> : 'v1'\n" +
-                "  |  <slot 5> : 'v2'");
+        assertPlanContains(sql, "OUTPUT EXPRS:1: v1 | 2: v2");
     }
 
     @Test
@@ -416,5 +414,15 @@ public class PinotQueryTest extends PinotTestBase {
         sql = "select jsonextractscalar(j, '$.name', 'STRING', 'dummyValue') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
                 "  |  <slot 13> : ifnull(get_json_string(12: j, '$.name'), 'dummyValue')");
+    }
+
+    @Test
+    public void testIdentifier() throws Exception {
+        String sql = "select \"ta\" from test.tall";
+        assertPlanContains(sql, "OUTPUT EXPRS:1: ta");
+
+        sql = "select ta AS \"time\" from test.tall group by \"time\"";
+        assertPlanContains(sql, "1:AGGREGATE (update finalize)\n" +
+                "  |  group by: 1: ta");
     }
 }

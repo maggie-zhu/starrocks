@@ -24,8 +24,11 @@ import com.starrocks.analysis.HintNode;
 import com.starrocks.analysis.IntLiteral;
 import com.starrocks.analysis.OrderByElement;
 import com.starrocks.analysis.ParseNode;
+import com.starrocks.analysis.SlotRef;
+import com.starrocks.analysis.StringLiteral;
 import com.starrocks.sql.ast.Identifier;
 import com.starrocks.sql.ast.QualifiedName;
+import com.starrocks.sql.ast.SelectListItem;
 import com.starrocks.sql.parser.NodePosition;
 import com.starrocks.sql.parser.StarRocksParser;
 import com.starrocks.sql.parser.SyntaxSugars;
@@ -53,6 +56,51 @@ public class AstBuilder extends com.starrocks.sql.parser.AstBuilder {
     @Override
     public ParseNode visitFunctionCallExpression(StarRocksParser.FunctionCallExpressionContext ctx) {
         return visitChildren(ctx);
+    }
+
+    @Override
+    public ParseNode visitSelectSingle(StarRocksParser.SelectSingleContext context) {
+        String alias = null;
+        if (context.identifier() != null) {
+            alias = ((Identifier) visit(context.identifier())).getValue();
+        } else if (context.string() != null) {
+            StarRocksParser.StringContext context1 = context.string();
+            if (context1.DOUBLE_QUOTED_TEXT() != null) {
+                String quotedString = context1.DOUBLE_QUOTED_TEXT().getText();
+                quotedString = quotedString.substring(1, quotedString.length() - 1).replace("\"\"", "\"");
+                alias = quotedString.replace("\"", "");
+            } else {
+                alias = ((StringLiteral) visit(context.string())).getStringValue();
+            }
+        }
+
+        return new SelectListItem((Expr) visit(context.expression()), alias, createPos(context));
+    }
+
+    @Override
+    public ParseNode visitString(StarRocksParser.StringContext context) {
+        String quotedString;
+        NodePosition pos = createPos(context);
+        if (context.SINGLE_QUOTED_TEXT() != null) {
+            quotedString = context.SINGLE_QUOTED_TEXT().getText();
+            // For support mysql embedded quotation
+            // In a single-quoted string, two single-quotes are combined into one single-quote
+            quotedString = quotedString.substring(1, quotedString.length() - 1).replace("''", "'");
+            return new StringLiteral(escapeBackSlash(quotedString), pos);
+        } else {
+            quotedString = context.DOUBLE_QUOTED_TEXT().getText();
+            // In pinot, the double quoted string is used to represent the column name
+            quotedString = quotedString.substring(1, quotedString.length() - 1).replace("\"\"", "\"");
+
+            List<String> parts = new ArrayList<>();
+            parts.add(quotedString.replace("\"", ""));
+
+            QualifiedName qualifiedName = QualifiedName.of(parts, createPos(context));
+            SlotRef slotRef = new SlotRef(qualifiedName);
+            slotRef.setBackQuoted(true);
+
+            return slotRef;
+        }
     }
 
     public ParseNode visitSimpleFunctionCall(StarRocksParser.SimpleFunctionCallContext context) {

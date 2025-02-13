@@ -7226,7 +7226,7 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         return new VarBinaryLiteral(quotedText.substring(2, quotedText.length() - 1), createPos(context));
     }
 
-    private static String escapeBackSlash(String str) {
+    protected static String escapeBackSlash(String str) {
         StringWriter writer = new StringWriter();
         int strLen = str.length();
         for (int i = 0; i < strLen; ++i) {
