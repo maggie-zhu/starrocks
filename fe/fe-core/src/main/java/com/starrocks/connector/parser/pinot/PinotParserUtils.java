@@ -146,6 +146,7 @@ public class PinotParserUtils {
 
         Map<String, String> formatMapping = new LinkedHashMap<>();
         formatMapping.put("yyyy", "%Y");
+        formatMapping.put("YYYY", "%Y");
         formatMapping.put("MM", "%m");
         formatMapping.put("dd", "%d");
         formatMapping.put("HH", "%H");

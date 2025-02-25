@@ -144,7 +144,7 @@ public class ComplexFunctionCallTransformer {
             }
             List<String> parsedInput = parseInputString(((StringLiteral) args[1]).getValue());
             return buildPredicate(parsedInput, argumentsList);
-        } else if (functionName.equalsIgnoreCase("jsonextractscalar")) {
+        } else if (functionName.replace("_", "").equalsIgnoreCase("jsonextractscalar")) {
             List<Expr> argumentsList = Arrays.asList(args);
             if (args.length < 3) {
                 throw new SemanticException("The jsonextractscalar function must include at least 3 parameters.");

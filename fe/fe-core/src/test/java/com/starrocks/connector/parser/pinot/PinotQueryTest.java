@@ -332,8 +332,7 @@ public class PinotQueryTest extends PinotTestBase {
                 "    'CET'\n" +
                 "    ) AS dateTimeString from test.tall";
         assertPlanContains(sql, "1:Project\n" +
-                "  |  <slot 13> : convert_tz(CAST(date_format(8: th, '%Y-%m-%d %H:%i:%S ') " +
-                "AS DATETIME), 'Asia/Shanghai', 'CET')");
+                "  |  <slot 13> : date_format(convert_tz(8: th, 'Asia/Shanghai', 'CET'), '%Y-%m-%d %H:%i:%S");
     }
 
     @Test

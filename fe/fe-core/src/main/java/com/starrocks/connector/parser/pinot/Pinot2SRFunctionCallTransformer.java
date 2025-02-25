@@ -129,11 +129,10 @@ public class Pinot2SRFunctionCallTransformer {
         registerFunctionTransformer("todatetime", 2, "date_format", List.of(Expr.class, Expr.class));
 
         // todatetime (time, pattern, timeZone) -> convert_tz, str_to_date
-        registerFunctionTransformer("todatetime", 3, new FunctionCallExpr("convert_tz", List.of(
-                new FunctionCallExpr("date_format", List.of(
-                        new PlaceholderExpr(1, Expr.class), new PlaceholderExpr(2, Expr.class))),
-                new VariableExpr("time_zone"),
-                new PlaceholderExpr(3, Expr.class)
+        registerFunctionTransformer("todatetime", 3, new FunctionCallExpr("date_format", List.of(
+                new FunctionCallExpr("convert_tz", List.of( new PlaceholderExpr(1, Expr.class),
+                        new VariableExpr("time_zone"), new PlaceholderExpr(3, Expr.class))),
+                new PlaceholderExpr(2, Expr.class)
         )));
 
         // fromdatetime -> str_to_date
