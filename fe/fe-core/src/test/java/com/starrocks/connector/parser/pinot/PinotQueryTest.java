@@ -363,6 +363,10 @@ public class PinotQueryTest extends PinotTestBase {
         assertPlanContains(sql, "1:AGGREGATE (update finalize)\n" +
                 "  |  output: approx_count_distinct(1: ta)");
 
+        sql = "select DISTINCTCOUNTHLL(ta, 12) AS value from test.tall";
+        assertPlanContains(sql, "1:AGGREGATE (update finalize)\n" +
+                "  |  output: approx_count_distinct(1: ta)");
+
         sql = "select PERCENTILETDIGEST(tg, 50, 1000) AS value from test.tall";
         assertPlanContains(sql, "1:AGGREGATE (update finalize)\n" +
                 "  |  output: percentile_approx(CAST(7: tg AS DOUBLE), 0.5, 1000.0)");

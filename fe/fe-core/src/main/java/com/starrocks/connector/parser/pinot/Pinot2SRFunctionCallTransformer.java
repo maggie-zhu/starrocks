@@ -59,7 +59,11 @@ public class Pinot2SRFunctionCallTransformer {
                 // transform date format
                 children.set(1, transformDateFormat(children.get(1)));
                 break;
-
+            case "distinctcounthll":
+                if (children.size() == 2) {
+                    children = children.subList(0, 1);
+                }
+                break;
             default:
                 if (fnName.equalsIgnoreCase("percentiletdigest")) {
                     children.set(1, transformPercentileValue(children.get(1)));
@@ -130,7 +134,7 @@ public class Pinot2SRFunctionCallTransformer {
 
         // todatetime (time, pattern, timeZone) -> convert_tz, str_to_date
         registerFunctionTransformer("todatetime", 3, new FunctionCallExpr("date_format", List.of(
-                new FunctionCallExpr("convert_tz", List.of( new PlaceholderExpr(1, Expr.class),
+                new FunctionCallExpr("convert_tz", List.of(new PlaceholderExpr(1, Expr.class),
                         new VariableExpr("time_zone"), new PlaceholderExpr(3, Expr.class))),
                 new PlaceholderExpr(2, Expr.class)
         )));
