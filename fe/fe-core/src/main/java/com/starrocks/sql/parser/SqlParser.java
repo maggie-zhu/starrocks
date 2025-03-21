@@ -18,6 +18,7 @@ import com.google.common.collect.Lists;
 import com.starrocks.analysis.Expr;
 import com.starrocks.common.Config;
 import com.starrocks.common.Pair;
+import com.starrocks.connector.parser.pinot.PinotParserUtils;
 import com.starrocks.connector.parser.trino.TrinoParserUtils;
 import com.starrocks.connector.trino.TrinoParserUnsupportedException;
 import com.starrocks.qe.ConnectContext;
@@ -40,6 +41,7 @@ import org.antlr.v4.runtime.atn.PredictionContextCache;
 import org.antlr.v4.runtime.atn.PredictionMode;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -75,28 +77,74 @@ public class SqlParser {
         }
     }
 
+//    private static List<StatementBase> parseWithPinotDialect(String sql, SessionVariable sessionVariable) {
+//        List<StatementBase> statements = Lists.newArrayList();
+//        Pair<ParserRuleContext, StarRocksParser> pair = invokeParser(sql, sessionVariable, StarRocksParser::sqlStatements);
+//        StarRocksParser.SqlStatementsContext sqlStatementsContext = (StarRocksParser.SqlStatementsContext) pair.first;
+//        List<StarRocksParser.SingleStatementContext> singleStatementContexts = sqlStatementsContext.singleStatement();
+//        for (int idx = 0; idx < singleStatementContexts.size(); ++idx) {
+//            // collect hint info
+//            HintCollector collector = new HintCollector((CommonTokenStream) pair.second.getTokenStream(), sessionVariable);
+//            collector.collect(singleStatementContexts.get(idx));
+//            AstBuilder astBuilder = GlobalStateMgr.getCurrentState().getSqlParser().astBuilderFactory
+//                    .createPinotAst(sessionVariable.getSqlMode(), collector.getContextWithHintMap());
+//
+//            StatementBase statement = (StatementBase) astBuilder.visitSingleStatement(singleStatementContexts.get(idx));
+//            if (astBuilder.getParameters() != null && astBuilder.getParameters().size() != 0
+//                    && !(statement instanceof PrepareStmt)) {
+//                // for prepare stm1 from  '', here statement is inner statement
+//                statement = new PrepareStmt("", statement, astBuilder.getParameters());
+//            } else {
+//                statement.setOrigStmt(new OriginStatement(sql, idx));
+//            }
+//            statements.add(statement);
+//        }
+//        return statements;
+//    }
+
     private static List<StatementBase> parseWithPinotDialect(String sql, SessionVariable sessionVariable) {
         List<StatementBase> statements = Lists.newArrayList();
-        Pair<ParserRuleContext, StarRocksParser> pair = invokeParser(sql, sessionVariable, StarRocksParser::sqlStatements);
-        StarRocksParser.SqlStatementsContext sqlStatementsContext = (StarRocksParser.SqlStatementsContext) pair.first;
-        List<StarRocksParser.SingleStatementContext> singleStatementContexts = sqlStatementsContext.singleStatement();
-        for (int idx = 0; idx < singleStatementContexts.size(); ++idx) {
-            // collect hint info
-            HintCollector collector = new HintCollector((CommonTokenStream) pair.second.getTokenStream(), sessionVariable);
-            collector.collect(singleStatementContexts.get(idx));
-            AstBuilder astBuilder = GlobalStateMgr.getCurrentState().getSqlParser().astBuilderFactory
-                    .createPinotAst(sessionVariable.getSqlMode(), collector.getContextWithHintMap());
+        try {
+            // 拆分多条SQL语句
+            StatementSplitter splitter = new StatementSplitter(sql);
 
-            StatementBase statement = (StatementBase) astBuilder.visitSingleStatement(singleStatementContexts.get(idx));
-            if (astBuilder.getParameters() != null && astBuilder.getParameters().size() != 0
-                    && !(statement instanceof PrepareStmt)) {
-                // for prepare stm1 from  '', here statement is inner statement
-                statement = new PrepareStmt("", statement, astBuilder.getParameters());
-            } else {
-                statement.setOrigStmt(new OriginStatement(sql, idx));
+            // 处理完整的语句
+            for (int idx = 0; idx < splitter.getCompleteStatements().size(); ++idx) {
+                StatementSplitter.Statement statement = splitter.getCompleteStatements().get(idx);
+                StatementBase statementBase = PinotParserUtils.toStatement(statement.statement(),
+                        sessionVariable.getSqlMode());
+                statementBase.setOrigStmt(new OriginStatement(sql, idx));
+                statements.add(statementBase);
             }
-            statements.add(statement);
+
+            // 处理不完整的语句部分（如果有）
+            if (!splitter.getPartialStatement().isEmpty()) {
+                StatementBase statement = PinotParserUtils.toStatement(splitter.getPartialStatement(),
+                        sessionVariable.getSqlMode());
+                statement.setOrigStmt(new OriginStatement(sql, splitter.getCompleteStatements().size()));
+                statements.add(statement);
+            }
+
+            // 设置关系别名大小写不敏感（如果需要）
+            if (ConnectContext.get() != null) {
+                ConnectContext.get().setRelationAliasCaseInSensitive(true);
+            }
+        } catch (RuntimeException e) {
+            // 处理SQL解析异常
+            if (sql.toLowerCase().contains("select")) {
+                LOG.warn("Pinot parse sql [{}] error, cause by {}", sql, e);
+            }
+            if (sessionVariable.isEnableDialectDowngrade()) {
+                return tryParseWithStarRocksDialect(sql, sessionVariable, e);
+            }
+            throw e;
         }
+
+        // 检查语句是否为空或包含null，如果是则尝试使用StarRocks方言解析
+        if (statements.isEmpty() || statements.stream().anyMatch(Objects::isNull)) {
+            return parseWithStarRocksDialect(sql, sessionVariable);
+        }
+
         return statements;
     }
 

@@ -19,6 +19,12 @@ import com.starrocks.analysis.FunctionCallExpr;
 import com.starrocks.analysis.StringLiteral;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.common.util.DateUtils;
+import com.starrocks.sql.ast.StatementBase;
+import org.apache.calcite.avatica.util.Casing;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.sql.parser.SqlParser;
 
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -70,6 +76,34 @@ public class PinotParserUtils {
         DATETIME_RETURNING_FUNCTIONS.add(FunctionSet.HOURS_ADD);
         DATETIME_RETURNING_FUNCTIONS.add(FunctionSet.HOURS_SUB);
         DATETIME_RETURNING_FUNCTIONS.add(FunctionSet.CONVERT_TZ);
+    }
+
+    public static StatementBase toStatement(String query, long sqlMode) {
+        String trimmedQuery = query.trim();
+
+        // 使用Calcite解析Pinot SQL
+        SqlParser.Config parserConfig = SqlParser.config()
+                .withCaseSensitive(false)  // 根据Pinot配置调整
+                .withQuotedCasing(Casing.UNCHANGED)
+                .withUnquotedCasing(Casing.UNCHANGED);
+
+        SqlParser parser = SqlParser.create(trimmedQuery, parserConfig);
+
+        try {
+            // 解析SQL得到Calcite的SqlNode
+            SqlNode sqlNode = parser.parseQuery();
+
+            // 判断SQL类型并根据类型进行适当的转换
+            if (sqlNode instanceof SqlSelect) {
+
+                // 使用自定义的AstBuilderTwo来转换Calcite的SqlNode到StarRocks的StatementBase
+                return (StatementBase) sqlNode.accept(new AstBuilderTwo(sqlMode));
+            } else {
+                throw new UnsupportedOperationException("Unsupported statement type: " + sqlNode.getClass().getName());
+            }
+        } catch (SqlParseException e) {
+            throw new RuntimeException("Failed to parse Pinot SQL: " + e.getMessage(), e);
+        }
     }
 
     private static Set<String> createDateFormatSet() {
