@@ -16,13 +16,17 @@ package com.starrocks.connector.parser.pinot;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.starrocks.analysis.ArithmeticExpr;
+import com.starrocks.analysis.BinaryPredicate;
+import com.starrocks.analysis.BinaryType;
 import com.starrocks.analysis.CastExpr;
 import com.starrocks.analysis.CompoundPredicate;
 import com.starrocks.analysis.DecimalLiteral;
 import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.FunctionCallExpr;
 import com.starrocks.analysis.FunctionParams;
+import com.starrocks.analysis.InPredicate;
 import com.starrocks.analysis.IntLiteral;
+import com.starrocks.analysis.IsNullPredicate;
 import com.starrocks.analysis.StringLiteral;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
@@ -152,6 +156,7 @@ public class ComplexFunctionCallTransformer {
             if (args.length == 3) {
                 FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
                         new FunctionParams(ImmutableList.of(argumentsList.get(0), argumentsList.get(1))));
+                jsonQuery.setType(Type.JSON);
                 StringLiteral resultsType = (StringLiteral) argumentsList.get(2);
                 return new CastExpr(PinotParserUtils.getScalarType(resultsType.getValue()), jsonQuery);
             } else if (args.length == 4) {
@@ -162,6 +167,58 @@ public class ComplexFunctionCallTransformer {
                 CastExpr castExpr = new CastExpr(PinotParserUtils.getScalarType(resultsType.getValue()), jsonQuery);
                 return new FunctionCallExpr(FunctionSet.IFNULL,
                         new FunctionParams(ImmutableList.of(castExpr, argumentsList.get(3))));
+            }
+        } else if (functionName.replace("_", "").equalsIgnoreCase("jsonmatch")) {
+            List<Expr> argumentsList = Arrays.asList(args);
+            if (args.length < 2) {
+                throw new SemanticException("The jsonmatch function must include at least 2 parameters.");
+            }
+            StringLiteral paramLiteral = (StringLiteral) args[1];
+            JsonMatchExpressionParser.JsonMatchCondition jsonMatchCondition =
+                    JsonMatchExpressionParser.parseJsonMatchExpression(paramLiteral.getValue());
+            String operator = jsonMatchCondition.getOperator().toLowerCase();
+            String jsonPath = jsonMatchCondition.getJsonPath();
+            Object value = jsonMatchCondition.getValue();
+            List<String> valueList = jsonMatchCondition.getValueList();
+            List<Expr> valueExprList = new ArrayList<>();
+            if (jsonMatchCondition.isList()) {
+                for (String valueStr : valueList) {
+                    valueExprList.add(new StringLiteral(valueStr));
+                }
+            }
+
+            if (operator.equals("is null")) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new StringLiteral(jsonPath))));
+                return new IsNullPredicate(jsonQuery, false);
+            } else if (operator.equals("is not null")) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new StringLiteral(jsonPath))));
+                return new IsNullPredicate(jsonQuery, true);
+            } else if (operator.equals("in")) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new StringLiteral(jsonPath))));
+                CastExpr castExpr = new CastExpr(Type.STRING, jsonQuery);
+
+                return new InPredicate(castExpr, valueExprList, false);
+            } else if (operator.equals("not in")) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new StringLiteral(jsonPath))));
+
+                CastExpr castExpr = new CastExpr(Type.STRING, jsonQuery);
+                return new InPredicate(castExpr, valueExprList, true);
+            } else if (operator.equals("=")) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new StringLiteral(jsonPath))));
+
+                CastExpr castExpr = new CastExpr(PinotParserUtils.getScalarTypeFromObject(value), jsonQuery);
+                return new BinaryPredicate(BinaryType.EQ, castExpr, PinotParserUtils.getLiteralTypeFromObject(value));
+            } else if (operator.equals("!=")) {
+                FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new StringLiteral(jsonPath))));
+
+                CastExpr castExpr = new CastExpr(PinotParserUtils.getScalarTypeFromObject(value), jsonQuery);
+                return new BinaryPredicate(BinaryType.NE, castExpr, PinotParserUtils.getLiteralTypeFromObject(value));
             }
         }
 

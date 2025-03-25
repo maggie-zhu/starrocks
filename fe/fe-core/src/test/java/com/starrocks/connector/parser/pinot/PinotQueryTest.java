@@ -417,6 +417,14 @@ public class PinotQueryTest extends PinotTestBase {
         sql = "select jsonextractscalar(j, '$.name', 'STRING', 'dummyValue') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
                 "  |  <slot 13> : ifnull(get_json_string(12: j, '$.name'), 'dummyValue')");
+
+        sql = "select jsonextractscalar(j, '$.name', 'STRING_ARRAY') AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : CAST(json_query(12: j, '$.name') AS ARRAY<VARCHAR>)");
+
+        sql = "select jsonextractscalar(j, '$.name', 'INT_ARRAY') AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : CAST(json_query(12: j, '$.name') AS ARRAY<INT>)");
     }
 
     @Test
@@ -427,5 +435,33 @@ public class PinotQueryTest extends PinotTestBase {
         sql = "select ta AS \"time\" from test.tall group by \"time\"";
         assertPlanContains(sql, "1:AGGREGATE (update finalize)\n" +
                 "  |  group by: 1: ta");
+    }
+
+    @Test
+    public void testJsonMatch() throws Exception {
+        String sql = "select ta from test.tall where json_match(j, '\"$.name\"=1')";
+        assertPlanContains(sql, "PREDICATES: CAST(get_json_int(12: j, '$.name') AS INT) = 1");
+
+        sql = "select ta from test.tall where json_match(j, '\"$.name\"=''Connected''')";
+        assertPlanContains(sql, "PREDICATES: get_json_string(12: j, '$.name') = 'Connected'");
+
+        sql = "select ta from test.tall where json_match(j, '\"$.name\" in " +
+                "(''InValidCredentials'', ''CouldNotConnect'', ''Connected'')')";
+        assertPlanContains(sql, "PREDICATES: get_json_string(12: j, '$.name') " +
+                "IN ('InValidCredentials', 'CouldNotConnect', 'Connected')");
+
+        sql = "select ta from test.tall where json_match(j, '\"$.name\" IS NOT NULL')";
+        assertPlanContains(sql, "PREDICATES: json_query(12: j, '$.name') IS NOT NULL");
+
+        sql = "select ta from test.tall where json_match(j, '\"name[*]\" is null')";
+        assertPlanContains(sql, "PREDICATES: json_query(12: j, 'name[*]') IS NULL");
+
+        sql = "select ta from test.tall where json_match(j, '\"$.name\"!=''7''')";
+        assertPlanContains(sql, "PREDICATES: get_json_string(12: j, '$.name') != '7'");
+
+        sql = "select ta from test.tall where json_match(j, '\"$.name\" not in " +
+                "(''601'', ''404'', ''603'', ''502'', ''500'', ''0'', ''604'')')";
+        assertPlanContains(sql, "PREDICATES: get_json_string(12: j, '$.name') " +
+                "NOT IN ('601', '404', '603', '502', '500', '0', '604')");
     }
 }

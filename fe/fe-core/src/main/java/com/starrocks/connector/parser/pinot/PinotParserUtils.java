@@ -13,12 +13,17 @@
 // limitations under the License.
 package com.starrocks.connector.parser.pinot;
 
+import com.starrocks.analysis.BoolLiteral;
 import com.starrocks.analysis.CastExpr;
 import com.starrocks.analysis.Expr;
+import com.starrocks.analysis.FloatLiteral;
 import com.starrocks.analysis.FunctionCallExpr;
+import com.starrocks.analysis.IntLiteral;
+import com.starrocks.analysis.LargeIntLiteral;
 import com.starrocks.analysis.StringLiteral;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
+import com.starrocks.common.AnalysisException;
 import com.starrocks.common.util.DateUtils;
 
 import java.time.format.DateTimeParseException;
@@ -258,6 +263,75 @@ public class PinotParserUtils {
             default:
                 return Type.VARCHAR;
         }
+    }
+
+    public static Type getScalarTypeFromObject(Object obj) {
+        if (obj == null) {
+            return Type.VARCHAR;
+        }
+
+        Class<?> clazz = obj.getClass();
+
+        if (Integer.class.equals(clazz)) {
+            return Type.INT;
+        } else if (Long.class.equals(clazz)) {
+            return Type.BIGINT;
+        } else if (Float.class.equals(clazz)) {
+            return Type.FLOAT;
+        } else if (Double.class.equals(clazz)) {
+            return Type.DOUBLE;
+        } else if (Boolean.class.equals(clazz)) {
+            return Type.BOOLEAN;
+        } else if (String.class.equals(clazz)) {
+            return Type.STRING;
+        } else if (java.sql.Timestamp.class.equals(clazz)) {
+            return Type.DATETIME;
+        } else if (clazz.isArray()) {
+            Class<?> componentType = clazz.getComponentType();
+            if (Integer.class.equals(componentType)) {
+                return Type.ARRAY_INT;
+            } else if (Long.class.equals(componentType)) {
+                return Type.ARRAY_BIGINT;
+            } else if (Float.class.equals(componentType)) {
+                return Type.ARRAY_FLOAT;
+            } else if (Double.class.equals(componentType)) {
+                return Type.ARRAY_DOUBLE;
+            } else if (String.class.equals(componentType)) {
+                return Type.ARRAY_VARCHAR;
+            }
+        }
+
+        return Type.VARCHAR;
+    }
+
+    public static Expr getLiteralTypeFromObject(Object obj) {
+        if (obj == null) {
+            return new StringLiteral(null);
+        }
+
+        Class<?> clazz = obj.getClass();
+
+        if (Integer.class.equals(clazz)) {
+            return new IntLiteral((Integer) obj);
+        } else if (Long.class.equals(clazz)) {
+            try {
+                return new LargeIntLiteral(obj.toString());
+            } catch (AnalysisException e) {
+                throw new RuntimeException(e);
+            }
+        } else if (Float.class.equals(clazz)) {
+            try {
+                return new FloatLiteral(obj.toString());
+            } catch (AnalysisException e) {
+                throw new RuntimeException(e);
+            }
+        } else if (Boolean.class.equals(clazz)) {
+            return new BoolLiteral((Boolean) obj);
+        } else if (String.class.equals(clazz)) {
+            return new StringLiteral((String) obj);
+        }
+
+        return new StringLiteral(obj.toString());
     }
 
     public static String[] parseDateFormat(String pattern) {
