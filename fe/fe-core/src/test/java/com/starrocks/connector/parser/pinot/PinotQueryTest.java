@@ -425,6 +425,18 @@ public class PinotQueryTest extends PinotTestBase {
         sql = "select jsonextractscalar(j, '$.name', 'INT_ARRAY') AS value from test.tall";
         assertPlanContains(sql, "1:Project\n" +
                 "  |  <slot 13> : CAST(json_query(12: j, '$.name') AS ARRAY<INT>)");
+
+        sql = "select jsonextractscalar(j, '$.name', 'INT_ARRAY', '') AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : ifnull(CAST(json_query(12: j, '$.name') AS ARRAY<INT>), CAST([] AS ARRAY<INT>))");
+
+        sql = "select jsonextractscalar(j, '$.name', 'STRING_ARRAY', '') AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : ifnull(CAST(json_query(12: j, '$.name') AS ARRAY<VARCHAR>), CAST([] AS ARRAY<VARCHAR>))");
+
+        sql = "select jsonextractscalar(j, '$.name', 'STRING_ARRAY', ['v1', 'v2']) AS value from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : ifnull(CAST(json_query(12: j, '$.name') AS ARRAY<VARCHAR>), ['v1','v2'])");
     }
 
     @Test
@@ -463,5 +475,30 @@ public class PinotQueryTest extends PinotTestBase {
                 "(''601'', ''404'', ''603'', ''502'', ''500'', ''0'', ''604'')')";
         assertPlanContains(sql, "PREDICATES: get_json_string(12: j, '$.name') " +
                 "NOT IN ('601', '404', '603', '502', '500', '0', '604')");
+    }
+
+    @Test
+    public void testSubstr() throws Exception {
+        String sql = "select substr(ta, 1, 2) from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : substring(1: ta, 2, 1)");
+
+        sql = "select substr(ta, 1, -1) from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : substring(1: ta, 2)");
+    }
+
+    @Test
+    public void testArrayLength() throws Exception {
+        String sql = "select arraylength(c1) from test.test_array";
+        assertPlanContains(sql, " 1:Project\n" +
+                "  |  <slot 4> : array_length(2: c1)");
+    }
+
+    @Test
+    public void testContains() throws Exception {
+        String sql = "select contains(ta, 'foo') from test.tall";
+        assertPlanContains(sql, "1:Project\n" +
+                "  |  <slot 13> : instr(1: ta, 'foo') > 0");
     }
 }

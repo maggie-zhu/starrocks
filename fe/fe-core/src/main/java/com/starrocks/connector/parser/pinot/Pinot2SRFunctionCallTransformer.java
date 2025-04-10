@@ -120,6 +120,7 @@ public class Pinot2SRFunctionCallTransformer {
         registerDateFunctionTransformer();
         registerStringFunctionTransformer();
         registerAggregateFunctionTransformer();
+        registerArrayFunctionTransformer();
         // todo: support more function transform
     }
 
@@ -154,6 +155,11 @@ public class Pinot2SRFunctionCallTransformer {
 
         //percentiletdigest -> percentile_approx
         registerFunctionTransformer("percentiletdigest", 3, "percentile_approx", List.of(Expr.class, Expr.class, Expr.class));
+    }
+
+    public static void registerArrayFunctionTransformer() {
+        // arraylength -> array_length
+        registerFunctionTransformer("arraylength", 1, "array_length", List.of(Expr.class));
     }
 
     private static void registerFunctionTransformer(String pinotFnName, int pinotFnArgNums, String starRocksFnName,

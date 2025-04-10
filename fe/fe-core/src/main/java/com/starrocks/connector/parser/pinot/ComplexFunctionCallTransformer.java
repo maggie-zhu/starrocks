@@ -28,9 +28,11 @@ import com.starrocks.analysis.InPredicate;
 import com.starrocks.analysis.IntLiteral;
 import com.starrocks.analysis.IsNullPredicate;
 import com.starrocks.analysis.StringLiteral;
+import com.starrocks.catalog.ArrayType;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
 import com.starrocks.sql.analyzer.SemanticException;
+import com.starrocks.sql.ast.ArrayExpr;
 import com.starrocks.sql.ast.IntervalLiteral;
 import com.starrocks.sql.ast.UnitIdentifier;
 
@@ -162,11 +164,29 @@ public class ComplexFunctionCallTransformer {
             } else if (args.length == 4) {
                 FunctionCallExpr jsonQuery = new FunctionCallExpr(FunctionSet.JSON_QUERY,
                         new FunctionParams(ImmutableList.of(argumentsList.get(0), argumentsList.get(1))));
+                jsonQuery.setType(Type.JSON);
                 StringLiteral resultsType = (StringLiteral) argumentsList.get(2);
 
                 CastExpr castExpr = new CastExpr(PinotParserUtils.getScalarType(resultsType.getValue()), jsonQuery);
-                return new FunctionCallExpr(FunctionSet.IFNULL,
-                        new FunctionParams(ImmutableList.of(castExpr, argumentsList.get(3))));
+                if (resultsType.getValue().toUpperCase().contains("ARRAY")) {
+                    // if the 4th parameter is empty, it means that the result type is array
+                    // so we need to cast the result to array type
+                    // and the default value is empty array
+                    if ((argumentsList.get(3) instanceof StringLiteral) &&
+                            ((StringLiteral) argumentsList.get(3)).getValue().isEmpty()) {
+                        return new FunctionCallExpr(FunctionSet.IFNULL,
+                                new FunctionParams(ImmutableList.of(castExpr, new ArrayExpr(new ArrayType(
+                                        PinotParserUtils.getScalarType(resultsType.getValue().split("_")[1])),
+                                        Lists.newArrayList()))));
+                    } else {
+                        argumentsList.get(3).setType(PinotParserUtils.getScalarType(resultsType.getValue()));
+                        return new FunctionCallExpr(FunctionSet.IFNULL,
+                                new FunctionParams(ImmutableList.of(castExpr, argumentsList.get(3))));
+                    }
+                } else {
+                    return new FunctionCallExpr(FunctionSet.IFNULL,
+                            new FunctionParams(ImmutableList.of(castExpr, argumentsList.get(3))));
+                }
             }
         } else if (functionName.replace("_", "").equalsIgnoreCase("jsonmatch")) {
             List<Expr> argumentsList = Arrays.asList(args);
@@ -220,6 +240,34 @@ public class ComplexFunctionCallTransformer {
                 CastExpr castExpr = new CastExpr(PinotParserUtils.getScalarTypeFromObject(value), jsonQuery);
                 return new BinaryPredicate(BinaryType.NE, castExpr, PinotParserUtils.getLiteralTypeFromObject(value));
             }
+        } else if (functionName.equalsIgnoreCase("substr")) {
+            List<Expr> argumentsList = Arrays.asList(args);
+            if (args.length < 3) {
+                throw new SemanticException("The substr function must include at least 3 parameters.");
+            }
+            IntLiteral startIndex = (IntLiteral) args[1];
+            IntLiteral endIndex = (IntLiteral) args[2];
+            long starRocksStart = startIndex.getValue() + 1;
+
+            if (endIndex.getValue() == -1) {
+                return new FunctionCallExpr(FunctionSet.SUBSTRING,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0), new IntLiteral(starRocksStart))));
+            } else {
+                long length = endIndex.getValue() - startIndex.getValue();
+                return new FunctionCallExpr(FunctionSet.SUBSTRING,
+                        new FunctionParams(ImmutableList.of(argumentsList.get(0),
+                                new IntLiteral(starRocksStart), new IntLiteral(length))));
+            }
+        } else if (functionName.equalsIgnoreCase("contains")) {
+            List<Expr> argumentsList = Arrays.asList(args);
+            if (args.length < 2) {
+                throw new SemanticException("The contains function must include 2 parameters.");
+            }
+
+            StringLiteral paramLiteral = (StringLiteral) args[1];
+            FunctionCallExpr inStr = new FunctionCallExpr(FunctionSet.INSTR,
+                    new FunctionParams(ImmutableList.of(argumentsList.get(0), paramLiteral)));
+            return new BinaryPredicate(BinaryType.GT, inStr, new IntLiteral(0));
         }
 
 
