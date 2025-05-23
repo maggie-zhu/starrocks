@@ -28,6 +28,7 @@ import com.starrocks.analysis.InPredicate;
 import com.starrocks.analysis.IntLiteral;
 import com.starrocks.analysis.IsNullPredicate;
 import com.starrocks.analysis.StringLiteral;
+import com.starrocks.analysis.TimestampArithmeticExpr;
 import com.starrocks.catalog.ArrayType;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
@@ -268,6 +269,34 @@ public class ComplexFunctionCallTransformer {
             FunctionCallExpr inStr = new FunctionCallExpr(FunctionSet.INSTR,
                     new FunctionParams(ImmutableList.of(argumentsList.get(0), paramLiteral)));
             return new BinaryPredicate(BinaryType.GT, inStr, new IntLiteral(0));
+        } else if (functionName.equalsIgnoreCase("ago")) {
+            DurationInfo durationInfo = DurationParser.parse(((StringLiteral) args[0]).getValue());
+            FunctionCallExpr now = new FunctionCallExpr(FunctionSet.NOW, new FunctionParams(ImmutableList.of()));
+
+            Expr finalFunc = null;
+
+            if (durationInfo.days != 0) {
+                IntervalLiteral intervalLiteral = new IntervalLiteral(new IntLiteral(durationInfo.days), new UnitIdentifier("DAY"));
+                finalFunc = new TimestampArithmeticExpr(ArithmeticExpr.Operator.SUBTRACT, now, intervalLiteral.getValue(), intervalLiteral.getUnitIdentifier().getDescription(), false);
+            }
+            if (durationInfo.hours != 0) {
+                IntervalLiteral intervalLiteral = new IntervalLiteral(new IntLiteral(durationInfo.hours), new UnitIdentifier("HOUR"));
+                finalFunc = new TimestampArithmeticExpr(ArithmeticExpr.Operator.SUBTRACT, finalFunc != null ? finalFunc : now, intervalLiteral.getValue(), intervalLiteral.getUnitIdentifier().getDescription(), false);
+            }
+            if (durationInfo.minutes != 0) {
+                IntervalLiteral intervalLiteral = new IntervalLiteral(new IntLiteral(durationInfo.minutes), new UnitIdentifier("MINUTE"));
+                finalFunc = new TimestampArithmeticExpr(ArithmeticExpr.Operator.SUBTRACT, finalFunc != null ? finalFunc : now, intervalLiteral.getValue(), intervalLiteral.getUnitIdentifier().getDescription(), false);
+            }
+            if (durationInfo.seconds != 0) {
+                IntervalLiteral intervalLiteral = new IntervalLiteral(new DecimalLiteral(BigDecimal.valueOf(durationInfo.seconds)), new UnitIdentifier("SECOND"));
+                finalFunc = new TimestampArithmeticExpr(ArithmeticExpr.Operator.SUBTRACT, finalFunc != null ? finalFunc : now, intervalLiteral.getValue(), intervalLiteral.getUnitIdentifier().getDescription(), false);
+            }
+
+            FunctionCallExpr unixTimestamp = new FunctionCallExpr(FunctionSet.UNIX_TIMESTAMP,
+                    new FunctionParams(ImmutableList.of(finalFunc)));
+            return new ArithmeticExpr(ArithmeticExpr.Operator.MULTIPLY, unixTimestamp,
+                    new IntLiteral(1000));
+
         }
 
 
